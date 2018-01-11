@@ -14,4 +14,8 @@ public final class KafkaConfig {
     public static final String OFFSET_STORAGE_TOPIC = "Kafka_consumer_offset";  // Topic for offset storage
     public static final String ZOOKEEPER = "10.200.159.84:2181";
 
+    // Will move to properties
+    public static final long POLL_TIMEOUT = 2000;
+    public static final int MESSAGE_WAIT_TIME = 8000;
+    public static int BATCH_SIZE = 500;
 }

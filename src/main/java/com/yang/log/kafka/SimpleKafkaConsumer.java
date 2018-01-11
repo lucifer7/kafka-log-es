@@ -15,6 +15,12 @@ import static com.yang.log.config.KafkaConfig.*;
 
 /**
  * Usage: <b> </b>
+ * Kafka consumer is not thread-sage
+ *
+ * If want to use multiple threads:
+ *  decouple consumption and process(manual submit)
+ *   maintain a queue for each processor
+ *   the hash into these queue by TopicPartition
  *
  * @author Jingyi.Yang
  *         Date 2018/1/11

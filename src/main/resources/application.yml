@@ -1,3 +1,5 @@
 server:
   port: 800
 
+es:
+  topic: Tracer_log

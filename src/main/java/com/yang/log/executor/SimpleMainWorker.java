@@ -15,11 +15,13 @@ import static com.yang.log.config.KafkaConfig.BATCH_SIZE;
  *         Date 2018/1/11
  **/
 public class SimpleMainWorker {
+    private static String topicName = "Tracer_log";
+
     public static void main(String[] args) {
         BlockingQueue<String> logQueue = new ArrayBlockingQueue<>(BATCH_SIZE);
 
         KafkaMessageReader reader = new KafkaMessageReader(logQueue);
-        EsMessageWriter writer = new EsMessageWriter(logQueue);
+        EsMessageWriter writer = new EsMessageWriter(logQueue, topicName);
 
         new Thread(reader).start();
         new Thread(writer).start();

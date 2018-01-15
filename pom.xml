@@ -26,7 +26,7 @@
         <guava.version>23.6-jre</guava.version>
         <metawidget.version>4.2</metawidget.version>
         <kafka.version>1.0.0</kafka.version>
-        <elasticsearch.version>6.1.1</elasticsearch.version>
+        <elasticsearch.version>6.0.1</elasticsearch.version>
     </properties>
 
     <dependencies>
@@ -78,6 +78,11 @@
         <dependency>
             <groupId>org.elasticsearch.client</groupId>
             <artifactId>transport</artifactId>
+            <version>${elasticsearch.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.elasticsearch.client</groupId>
+            <artifactId>elasticsearch-rest-high-level-client</artifactId>
             <version>${elasticsearch.version}</version>
         </dependency>
         <!-- Elasticsearch end -->

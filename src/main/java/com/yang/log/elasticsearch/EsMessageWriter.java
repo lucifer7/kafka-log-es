@@ -30,14 +30,19 @@ public class EsMessageWriter implements Runnable {
     public void run() {
         //Temp output to console
         EsClient client = new EsClient(ElasticsearchConfig.loadProperties());
+        try {
 
-        while (true) {
-            List<String> messages = Lists.newArrayListWithCapacity(BATCH_SIZE);
-            logQueue.drainTo(messages, BATCH_SIZE);
-            messages.forEach(message -> {
-                log.info("<Writing message [{}] to ES topic [{}]>", message, topicName);
-                client.addIndexToBulk(topicName, String.valueOf(UUID.randomUUID()), message);
-            });
+            while (true) {
+                List<String> messages = Lists.newArrayListWithCapacity(BATCH_SIZE);
+                logQueue.drainTo(messages, BATCH_SIZE);
+                messages.forEach(message -> {
+                    log.info("<Writing message [{}] to ES topic [{}]>", message, topicName);
+                    client.addIndexToBulk(topicName, String.valueOf(UUID.randomUUID()), message);
+                });
+                client.flush();
+            }
+        } finally {
+            client.close();;
         }
     }
 }

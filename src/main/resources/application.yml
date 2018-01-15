@@ -2,4 +2,4 @@ server:
   port: 800
 
 es:
-  topic: Tracer_log
+  topic: tracer_log     # es index name must be lowercase

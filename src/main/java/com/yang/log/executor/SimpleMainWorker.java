@@ -15,7 +15,7 @@ import static com.yang.log.config.KafkaConfig.BATCH_SIZE;
  *         Date 2018/1/11
  **/
 public class SimpleMainWorker {
-    private static String topicName = "Tracer_log";
+    private static String topicName = "tracer_log";
 
     public static void main(String[] args) {
         BlockingQueue<String> logQueue = new ArrayBlockingQueue<>(BATCH_SIZE);

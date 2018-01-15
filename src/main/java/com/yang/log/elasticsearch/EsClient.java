@@ -18,9 +18,11 @@ import org.metawidget.util.simple.StringUtils;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.BeanWrapperImpl;
 
-import java.net.InetSocketAddress;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Usage: <b> </b>
@@ -57,8 +59,6 @@ public class EsClient {
                 }
             }*/
 
-            //String prefix = property.startsWith(BULK_PROCESSOR_PREFIX) ? BULK_PROCESSOR_PREFIX + "." : "";
-            //String fieldName = buildFieldName(property, prefix);
             String fieldName = property.startsWith(BULK_PROCESSOR_PREFIX) ? property : buildFieldName(property, "");
             //if (wrapper.isWritableProperty(fieldName) || bulkWrapper.isWritableProperty(fieldName)) {
             if (wrapper.isWritableProperty(fieldName)) {
@@ -77,20 +77,24 @@ public class EsClient {
     }
 
     private void initClient() {
-        log.info("Initial Elasticsearch configuration: {}", elasticsearchConfig);
-        Settings settings = Settings.builder()
+        log.info("<Initial Elasticsearch configuration: {}>", elasticsearchConfig);
+        /*Settings settings = Settings.builder()
                 .put("cluster.name", elasticsearchConfig.getClusterName())
                 .put("client.transport.sniff", elasticsearchConfig.isClientTransportSniff())
                 .put("client.transport.ping_timeout", elasticsearchConfig.getClientTransportPing_timeout())
-                .build();
+                .put("client.transport.ignore_cluster_name", true)
+                .build();*/
 
-        client = new PreBuiltTransportClient(settings);
+        client = new PreBuiltTransportClient(Settings.EMPTY);
 
         String[] nodes = elasticsearchConfig.getNodeHosts().split(",");
         for (String node : nodes) {
             String[] hostPort = node.split(":");
-            client.addTransportAddress(new TransportAddress(
-                    new InetSocketAddress(hostPort[0], Integer.parseInt(hostPort[1]))));
+            try {
+                client.addTransportAddress(new TransportAddress(InetAddress.getByName(hostPort[0]), Integer.parseInt(hostPort[1])));
+            } catch (UnknownHostException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -126,5 +130,20 @@ public class EsClient {
         IndexRequest indexRequest = new IndexRequest(indexName, elasticsearchConfig.getTypeName(), id)
                 .source(jsonString, XContentType.JSON);
         bulkProcessor.add(indexRequest);
+    }
+
+
+    public void close() {
+        try {
+            bulkProcessor.awaitClose(100, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            log.error("Close elasticsearch client failed", e);
+        } finally {
+            client.close();
+        }
+    }
+
+    public void flush() {
+        bulkProcessor.flush();
     }
 }

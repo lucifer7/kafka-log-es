@@ -20,29 +20,26 @@ import static com.yang.log.config.KafkaConfig.BATCH_SIZE;
 public class EsMessageWriter implements Runnable {
     private BlockingQueue<String> logQueue;
     private String topicName;
+    private String type;
 
-    public EsMessageWriter(BlockingQueue<String> logQueue, String topicName) {
+    public EsMessageWriter(BlockingQueue<String> logQueue, String topicName, String type) {
         this.logQueue = logQueue;
         this.topicName = topicName;
+        this.type = type;
     }
 
     @Override
     public void run() {
         //Temp output to console
         EsClient client = new EsClient(ElasticsearchConfig.loadProperties());
-        try {
 
-            while (true) {
-                List<String> messages = Lists.newArrayListWithCapacity(BATCH_SIZE);
-                logQueue.drainTo(messages, BATCH_SIZE);
-                messages.forEach(message -> {
-                    log.info("<Writing message [{}] to ES topic [{}]>", message, topicName);
-                    client.addIndexToBulk(topicName, String.valueOf(UUID.randomUUID()), message);
-                });
-                client.flush();
-            }
-        } finally {
-            client.close();;
+        while (true) {
+            List<String> messages = Lists.newArrayListWithCapacity(BATCH_SIZE);
+            logQueue.drainTo(messages, BATCH_SIZE);
+            messages.forEach(message -> {
+                log.info("<Writing message [{}] to ES topic [{}]>", message, topicName);
+                client.addIndexToBulk(topicName, type, String.valueOf(UUID.randomUUID()), message);
+            });
         }
     }
 }

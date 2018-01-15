@@ -2,27 +2,20 @@ package com.yang.log.elasticsearch;
 
 import com.yang.log.config.ElasticsearchConfig;
 import lombok.extern.slf4j.Slf4j;
-import org.elasticsearch.action.bulk.BulkProcessor;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.unit.ByteSizeUnit;
-import org.elasticsearch.common.unit.ByteSizeValue;
-import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.transport.client.PreBuiltTransportClient;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
+import org.apache.http.entity.ContentType;
+import org.apache.http.nio.entity.NStringEntity;
+import org.elasticsearch.client.RestClient;
 import org.metawidget.util.simple.StringUtils;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.BeanWrapperImpl;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Usage: <b> </b>
@@ -36,8 +29,9 @@ public class EsClient {
     private static final char SEPARATOR = '.';
 
     private ElasticsearchConfig elasticsearchConfig = new ElasticsearchConfig();
-    private TransportClient client;
-    private BulkProcessor bulkProcessor;
+    // private TransportClient client;
+    // private RestHighLevelClient client;
+    private RestClient client;
 
     public EsClient(Properties properties) {
         BeanWrapper wrapper = new BeanWrapperImpl(elasticsearchConfig);
@@ -46,18 +40,6 @@ public class EsClient {
         properties.entrySet().forEach(item -> {
             String property = item.getKey().toString();
             Object value = item.getValue();
-            /*if (property.startsWith(BULK_PROCESSOR_PREFIX)) {
-                String fieldName = buildFieldName(property, BULK_PROCESSOR_PREFIX);
-                if (Objects.nonNull(value) && bulkWrapper.isWritableProperty(fieldName)) {
-                    bulkWrapper.setPropertyValue(fieldName, value);
-                }
-            } else {
-                String fieldName = buildFieldName(property, "");
-                if (wrapper.isWritableProperty(fieldName)) {
-                    Objects.requireNonNull(value, fieldName + " should be configured");
-                    wrapper.setPropertyValue(fieldName, value);
-                }
-            }*/
 
             String fieldName = property.startsWith(BULK_PROCESSOR_PREFIX) ? property : buildFieldName(property, "");
             //if (wrapper.isWritableProperty(fieldName) || bulkWrapper.isWritableProperty(fieldName)) {
@@ -68,7 +50,6 @@ public class EsClient {
         });
 
         initClient();
-        initBulkProcessor();
     }
 
     private String buildFieldName(String property, String prefix) {
@@ -78,72 +59,24 @@ public class EsClient {
 
     private void initClient() {
         log.info("<Initial Elasticsearch configuration: {}>", elasticsearchConfig);
-        /*Settings settings = Settings.builder()
-                .put("cluster.name", elasticsearchConfig.getClusterName())
-                .put("client.transport.sniff", elasticsearchConfig.isClientTransportSniff())
-                .put("client.transport.ping_timeout", elasticsearchConfig.getClientTransportPing_timeout())
-                .put("client.transport.ignore_cluster_name", true)
-                .build();*/
-
-        client = new PreBuiltTransportClient(Settings.EMPTY);
 
         String[] nodes = elasticsearchConfig.getNodeHosts().split(",");
-        for (String node : nodes) {
+        HttpHost[] hosts = Arrays.stream(nodes).map(node -> {
             String[] hostPort = node.split(":");
-            try {
-                client.addTransportAddress(new TransportAddress(InetAddress.getByName(hostPort[0]), Integer.parseInt(hostPort[1])));
-            } catch (UnknownHostException e) {
-                e.printStackTrace();
-            }
-        }
-    }
+            return new HttpHost(hostPort[0], Integer.parseInt(hostPort[1]));
+        }).toArray(HttpHost[]::new);
 
-    private void initBulkProcessor() {
-        ElasticsearchConfig.BulkProcessor bulkProcessor = elasticsearchConfig.getBulkProcessor();
-        this.bulkProcessor = BulkProcessor.builder(client, new BulkProcessor.Listener() {
-            @Override
-            public void beforeBulk(long executionId, BulkRequest request) {
-                // Action before commit
-            }
-
-            @Override
-            public void afterBulk(long executionId, BulkRequest request, BulkResponse response) {
-                log.info("{} document(s) committed, time cost {}ms", response.getItems().length, response.getIngestTookInMillis());
-                if (response.hasFailures()) {
-                    log.error("Some documents committed failed", response.buildFailureMessage());
-                }
-            }
-
-            @Override
-            public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
-                log.error("Some documents committed failed", failure);
-            }
-        })
-                .setBulkActions(bulkProcessor.getBulkActions())
-                .setBulkSize(new ByteSizeValue(bulkProcessor.getBulkSize(), ByteSizeUnit.MB))
-                .setFlushInterval(TimeValue.timeValueSeconds(bulkProcessor.getFlushInterval()))
-                .setConcurrentRequests(bulkProcessor.getConcurrentRequests())
-                .build();
-    }
-
-    public void addIndexToBulk(String indexName, String id, String jsonString) {
-        IndexRequest indexRequest = new IndexRequest(indexName, elasticsearchConfig.getTypeName(), id)
-                .source(jsonString, XContentType.JSON);
-        bulkProcessor.add(indexRequest);
+        client = RestClient.builder(hosts).build();
     }
 
 
-    public void close() {
+    public void addIndexToBulk(String indexName, String type, String id, String jsonString) {
+        HttpEntity entity = new NStringEntity(jsonString, ContentType.APPLICATION_JSON);
         try {
-            bulkProcessor.awaitClose(100, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            log.error("Close elasticsearch client failed", e);
-        } finally {
-            client.close();
+            client.performRequest("POST", "/" + indexName + "/" + type + "/" + id, Collections.emptyMap(), entity);
+        } catch (IOException e) {
+            log.error("<Post data failed>", e);
         }
     }
 
-    public void flush() {
-        bulkProcessor.flush();
-    }
 }

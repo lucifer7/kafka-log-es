@@ -1,7 +1,6 @@
 package com.yang.log.elasticsearch;
 
 import com.google.common.collect.Lists;
-import com.yang.log.config.ElasticsearchConfig;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -19,26 +18,22 @@ import static com.yang.log.config.KafkaConfig.BATCH_SIZE;
 @Slf4j
 public class EsMessageWriter implements Runnable {
     private BlockingQueue<String> logQueue;
-    private String topicName;
-    private String type;
+    private EsClient client;
 
-    public EsMessageWriter(BlockingQueue<String> logQueue, String topicName, String type) {
+    public EsMessageWriter(BlockingQueue<String> logQueue, EsClient client) {
         this.logQueue = logQueue;
-        this.topicName = topicName;
-        this.type = type;
+        this.client = client;
     }
 
     @Override
     public void run() {
         //Temp output to console
-        EsClient client = new EsClient(ElasticsearchConfig.loadProperties());
-
         while (true) {
             List<String> messages = Lists.newArrayListWithCapacity(BATCH_SIZE);
             logQueue.drainTo(messages, BATCH_SIZE);
             messages.forEach(message -> {
-                log.info("<Writing message [{}] to ES topic [{}]>", message, topicName);
-                client.addIndexToBulk(topicName, type, String.valueOf(UUID.randomUUID()), message);
+                log.info("<Writing message [{}] to ES>", message);
+                client.addDefaultIndex(String.valueOf(UUID.randomUUID()), message);
             });
         }
     }

@@ -1,5 +1,17 @@
 server:
   port: 800
 
-es:
-  topic: tracer_log     # es index name must be lowercase
+elasticsearch:
+  cluster-name: log-es
+  node-hosts: host:port
+  client-sniff: true
+  client-ping-timeout: 20s
+  index-roll-policy: dailyIndexPolicy
+  index-prefix: click-log       # es index name must be lowercase
+  index-format: yyyy-MM-dd
+  type: log
+  bulk-processor:
+    bulk-actions: 25000
+    bulk-size: 25
+    flush-interval: 20
+    concurrent-requests: 15
